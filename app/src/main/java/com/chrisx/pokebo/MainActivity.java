@@ -8,7 +8,9 @@ package com.chrisx.pokebo;
 import android.app.Activity;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.content.res.Resources;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -31,7 +33,11 @@ public class MainActivity extends Activity {
     private SharedPreferences sharedPref;
     private SharedPreferences.Editor editor;
 
-    private Typeface trebuchetms;
+    static int N[] = {33, 52, 89};
+    static Bitmap[][] sprites;
+    static Bitmap[] icons, cards;
+
+    static Typeface chewy;
 
     private boolean paused = false;
     private long frameCount = 0;
@@ -53,7 +59,7 @@ public class MainActivity extends Activity {
 
         //creates the bitmap
         //note: Star 4.5 is 480x854
-        int targetH = 854,
+        int targetH = 480,
                 wpx = getAppUsableScreenSize(this).x,
                 hpx = getAppUsableScreenSize(this).y;
         scaleFactor = Math.min(1,(float)targetH/hpx);
@@ -69,10 +75,31 @@ public class MainActivity extends Activity {
         sharedPref = this.getPreferences(Context.MODE_PRIVATE);
         editor = sharedPref.edit();
 
+        Resources res = getResources();
+
+        sprites = new Bitmap[3][Math.max(N[0],Math.max(N[1],N[2]))];
+        for (int i = 0; i < N[0]; i++) {
+            sprites[0][i] = BitmapFactory.decodeResource(res, R.drawable.fire00+i);
+        }
+        for (int i = 0; i < N[1]; i++) {
+            sprites[1][i] = BitmapFactory.decodeResource(res, R.drawable.grass00+i);
+        }
+        for (int i = 0; i < N[2]; i++) {
+            sprites[2][i] = BitmapFactory.decodeResource(res, R.drawable.water00+i);
+        }
+        icons = new Bitmap[3];
+        for (int i = 0; i < icons.length; i++) {
+            icons[i] = BitmapFactory.decodeResource(res, R.drawable.icon_fire+i);
+        }
+        cards = new Bitmap[3];
+        for (int i = 0; i < cards.length; i++) {
+            cards[i] = BitmapFactory.decodeResource(res, R.drawable.card_fire+i);
+        }
+
         nanosecondsPerFrame = (long)1e9 / FRAMES_PER_SECOND;
 
         //initialize fonts
-        trebuchetms = Typeface.createFromAsset(getAssets(), "fonts/TrebuchetMS.ttf");
+        chewy = Typeface.createFromAsset(getAssets(), "fonts/Chewy.ttf");
 
         canvas.drawColor(Color.BLACK);
 
@@ -93,7 +120,9 @@ public class MainActivity extends Activity {
                     handler.post(new Runnable() {
                         @Override
                         public void run() {
+                            if (!paused) {
 
+                            }
                         }
                     });
 
@@ -118,10 +147,16 @@ public class MainActivity extends Activity {
                     handler.post(new Runnable() {
                         @Override
                         public void run() {
+                            if (!paused) {
+                                canvas.drawColor(Color.WHITE);
 
+                                if (menu.equals("start")) {
+                                    drawTitleMenu();
+                                }
 
-                            //update canvas
-                            ll.invalidate();
+                                //update canvas
+                                ll.invalidate();
+                            }
                         }
                     });
 
@@ -176,19 +211,23 @@ public class MainActivity extends Activity {
     }
 
     //creates an instance of Paint set to a given color
-    private Paint newPaint(int color) {
+    static Paint newPaint(int color) {
         Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
         p.setColor(color);
-        p.setTypeface(trebuchetms);
+        p.setTypeface(chewy);
 
         return p;
     }
 
+    static int typeToInt(String t) {
+        return t.equals("fire") ? 0 : t.equals("grass") ? 1 : 2;
+    }
+
     static float c480(float f) {
-        return w() / (480 / f);
+        return h() / (480 / f);
     }
     static float c854(float f) {
-        return h() / (854 / f);
+        return w() / (854 / f);
     }
 
     private long getHighScore() {
@@ -200,6 +239,11 @@ public class MainActivity extends Activity {
     }
 
     private void drawTitleMenu() {
-
+        Card c1 = new Card(1,35,w()/2-c480(368),h()/2-c480(220),w()/2+c480(-32),h()/2+c480(20));
+        Card c2 = new Card(0,15,w()/2-c480(168),h()/2-c480(120),w()/2+c480(168),h()/2+c480(120));
+        Card c3 = new Card(2,4,w()/2-c480(-32),h()/2-c480(20),w()/2+c480(368),h()/2+c480(220));
+        c1.draw();
+        c2.draw();
+        c3.draw();
     }
 }
