@@ -62,7 +62,7 @@ class Card {
 
         Paint p = MainActivity.newPaint(Color.BLACK);
         p.setTextAlign(Paint.Align.CENTER);
-        p.setTextSize(sideW);
-        c.drawText(power+"",left+sideW/2,(bottom+top)/2-sideW*.1f,p);
+        p.setTextSize(sideW*.8f);
+        c.drawText(power+"",left+sideW/2,(bottom+top)/2-sideW*.2f,p);
     }
 }

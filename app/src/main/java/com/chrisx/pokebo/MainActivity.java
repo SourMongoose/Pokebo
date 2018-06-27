@@ -17,12 +17,20 @@ import android.graphics.Paint;
 import android.graphics.Point;
 import android.graphics.Typeface;
 import android.graphics.drawable.BitmapDrawable;
-import android.os.Handler;
 import android.os.Bundle;
+import android.os.Handler;
+import android.support.annotation.NonNull;
 import android.view.Display;
 import android.view.MotionEvent;
 import android.view.WindowManager;
 import android.widget.LinearLayout;
+
+import com.google.android.gms.auth.api.signin.GoogleSignIn;
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
+import com.google.android.gms.auth.api.signin.GoogleSignInClient;
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
+import com.google.android.gms.tasks.OnCompleteListener;
+import com.google.android.gms.tasks.Task;
 
 public class MainActivity extends Activity {
     private Bitmap bmp;
@@ -33,11 +41,14 @@ public class MainActivity extends Activity {
     private SharedPreferences sharedPref;
     private SharedPreferences.Editor editor;
 
+    private GoogleSignInAccount acc;
+    private boolean signInAttempted = false;
+
     static int N[] = {33, 52, 89};
     static Bitmap[][] sprites;
     static Bitmap[] icons, cards;
 
-    static Typeface chewy;
+    static Typeface font;
 
     private boolean paused = false;
     private long frameCount = 0;
@@ -99,7 +110,7 @@ public class MainActivity extends Activity {
         nanosecondsPerFrame = (long)1e9 / FRAMES_PER_SECOND;
 
         //initialize fonts
-        chewy = Typeface.createFromAsset(getAssets(), "fonts/Chewy.ttf");
+        font = Typeface.createFromAsset(getAssets(), "fonts/Exo2-SemiBold.ttf");
 
         canvas.drawColor(Color.BLACK);
 
@@ -177,6 +188,9 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         paused = false;
+
+        //try to sign in to Google Play
+        if (!isSignedIn()) signInSilently();
     }
 
     @Override
@@ -192,6 +206,28 @@ public class MainActivity extends Activity {
         int action = event.getAction();
 
         return true;
+    }
+
+    private boolean isSignedIn() {
+        return GoogleSignIn.getLastSignedInAccount(this) != null;
+    }
+
+    private void signInSilently() {
+        GoogleSignInClient signInClient = GoogleSignIn.getClient(this,
+                GoogleSignInOptions.DEFAULT_GAMES_SIGN_IN);
+        signInClient.silentSignIn().addOnCompleteListener(this,
+                new OnCompleteListener<GoogleSignInAccount>() {
+                    @Override
+                    public void onComplete(@NonNull Task<GoogleSignInAccount> task) {
+                        if (task.isSuccessful()) {
+                            // The signed in account is stored in the task's result.
+                            acc = task.getResult();
+                        } else {
+                            // Player will need to sign-in explicitly using via UI
+                        }
+                        signInAttempted = true;
+                    }
+                });
     }
 
     private Point getAppUsableScreenSize(Context context) {
@@ -214,7 +250,7 @@ public class MainActivity extends Activity {
     static Paint newPaint(int color) {
         Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
         p.setColor(color);
-        p.setTypeface(chewy);
+        p.setTypeface(font);
 
         return p;
     }
@@ -242,7 +278,8 @@ public class MainActivity extends Activity {
         Card c1 = new Card(1,35,w()/2-c480(368),h()/2-c480(220),w()/2+c480(-32),h()/2+c480(20));
         Card c2 = new Card(0,15,w()/2-c480(168),h()/2-c480(120),w()/2+c480(168),h()/2+c480(120));
         Card c3 = new Card(2,4,w()/2-c480(-32),h()/2-c480(20),w()/2+c480(368),h()/2+c480(220));
-        c1.draw();
+
+        if (isSignedIn()) c1.draw();
         c2.draw();
         c3.draw();
     }
