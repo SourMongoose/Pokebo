@@ -17,11 +17,13 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Point;
+import android.graphics.Rect;
 import android.graphics.Typeface;
 import android.graphics.drawable.BitmapDrawable;
 import android.os.Bundle;
 import android.os.Handler;
 import android.support.annotation.NonNull;
+import android.util.Log;
 import android.view.Display;
 import android.view.MotionEvent;
 import android.view.WindowManager;
@@ -69,9 +71,14 @@ public class MainActivity extends Activity {
     private static final int FRAMES_PER_SECOND = 60;
     private long nanosecondsPerFrame;
 
+    private int TRANSITION_MAX = FRAMES_PER_SECOND * 2 / 3;
+    private int transition = TRANSITION_MAX / 2;
+
     private float downX, downY;
 
     private Paint play;
+
+    private List<Card> playerDeck;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -79,7 +86,8 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
 
         //Set up Google Play sign-in
-        gsio = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_GAMES_SIGN_IN).build();
+        gsio = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_GAMES_SIGN_IN)
+                .requestEmail().build();
         gsic = GoogleSignIn.getClient(this, gsio);
 
         //creates the bitmap
@@ -140,6 +148,8 @@ public class MainActivity extends Activity {
         play.setTextAlign(Paint.Align.CENTER);
         play.setTextSize(c480(75));
 
+        playerDeck = starterDeck();
+
 
         final Handler handler = new Handler();
 
@@ -156,6 +166,10 @@ public class MainActivity extends Activity {
                         public void run() {
                             if (!paused) {
 
+                                //fading transition effect
+                                if (transition > 0) {
+                                    transition--;
+                                }
                             }
                         }
                     });
@@ -180,10 +194,23 @@ public class MainActivity extends Activity {
                         @Override
                         public void run() {
                             if (!paused) {
-                                canvas.drawColor(Color.rgb(100,200,100));
+                                if (transition < TRANSITION_MAX / 2) {
+                                    canvas.drawColor(Color.rgb(100, 200, 100));
 
-                                if (menu.equals("start")) {
-                                    drawTitleMenu();
+                                    if (menu.equals("start")) {
+                                        drawTitleMenu();
+                                    }
+                                }
+
+                                //fading transition effect
+                                if (transition > 0) {
+                                    int t = TRANSITION_MAX / 2, alpha;
+                                    if (transition > t) {
+                                        alpha = 255 - 255 * (transition - t) / t;
+                                    } else {
+                                        alpha = 255 - 255 * (t - transition) / t;
+                                    }
+                                    canvas.drawColor(Color.argb(alpha, 20, 20, 20));
                                 }
 
                                 //update canvas
@@ -217,7 +244,7 @@ public class MainActivity extends Activity {
     @Override
     public void onBackPressed() {
         if (menu.equals("deck")) {
-            menu = "start";
+            goToMenu("start");
         }
     }
 
@@ -230,10 +257,27 @@ public class MainActivity extends Activity {
 
         if (menu.equals("start")) {
             if (action == MotionEvent.ACTION_DOWN) {
+                Rect sp = new Rect(), mp = new Rect();
+                play.getTextBounds("SINGLEPLAYER",0,12,sp);
+                play.getTextBounds("MULTIPLAYER",0,11,mp);
+
+                //view deck
                 if (X < c480(100) && Y < c480(100)) {
-                    menu = "deck";
-                } else if (X > w()-c480(100) && Y < c480(100)) {
+                    goToMenu("deck");
+                }
+                //sign in to google play
+                else if (X > w()-c480(100) && Y < c480(100)) {
                     startSignInIntent();
+                }
+                //singleplayer mode
+                else if (X > w()/2-sp.width()/2 && X < w()/2+sp.width()/2
+                        && Y > h()*4/6-sp.height() && Y < h()*4/6) {
+                    goToMenu("singleplayer");
+                }
+                //multiplayer mode
+                else if (X > w()/2-mp.width()/2 && X < w()/2+mp.width()/2
+                        && Y > h()*5/6-mp.height() && Y < h()*5/6) {
+                    if (isSignedIn()) goToMenu("multiplayer");
                 }
             }
         }
@@ -285,6 +329,7 @@ public class MainActivity extends Activity {
                 acc = result.getSignInAccount();
             } else {
                 String message = result.getStatus().getStatusMessage();
+                Log.i("status",result.getStatus().toString());
                 if (message == null || message.isEmpty()) {
                     message = getString(R.string.signin_other_error);
                 }
@@ -338,12 +383,30 @@ public class MainActivity extends Activity {
         return w() / (854 / f);
     }
 
+    private int getCharacter() {
+        return sharedPref.getInt("character", -1);
+    }
+
     private long getHighScore() {
         return sharedPref.getInt("high_score", 0);
     }
 
     private double toRad(double deg) {
         return Math.PI/180*deg;
+    }
+
+    private void goToMenu(String s) {
+        transition = TRANSITION_MAX;
+
+        menu = s;
+    }
+
+    private Card getCard(int type, int p) {
+        int id;
+        do {
+            id = (int)(Math.random()*N[type]);
+        } while (power(type,id) != p);
+        return new Card(type,id);
     }
 
     private List<Card> starterDeck() {
@@ -354,13 +417,9 @@ public class MainActivity extends Activity {
             //Add one card each of power 2, 3-4, and 5-6
             int a = 2, b = (int)(Math.random()*2+3), c = (int)(Math.random()*2+5);
 
-            int id;
-            do {id = (int)(Math.random()*N[type]);} while (power(type,id) != a);
-            list.add(new Card(type,id));
-            do {id = (int)(Math.random()*N[type]);} while (power(type,id) != b);
-            list.add(new Card(type,id));
-            do {id = (int)(Math.random()*N[type]);} while (power(type,id) != c);
-            list.add(new Card(type,id));
+            list.add(getCard(type,a));
+            list.add(getCard(type,b));
+            list.add(getCard(type,c));
         }
 
         return list;
