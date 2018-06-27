@@ -1,6 +1,5 @@
 package com.chrisx.pokebo;
 
-import android.Manifest;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -8,11 +7,10 @@ import android.graphics.Paint;
 import android.graphics.RectF;
 
 class Card {
-    private float left, top, right, bottom;
     private int type, id, power;
     private Bitmap pokemon, icon, card;
 
-    Card(int type, int id, float l, float t, float r, float b) {
+    Card(int type, int id) {
         this.type = type;
         this.id = id;
 
@@ -22,18 +20,7 @@ class Card {
         card = MainActivity.cards[type];
 
         //assign card power
-        int N = MainActivity.N[type];
-        for (int j = 1; j < 13; j++) {
-            if (id*1./N < j*(j+1)/2*1./(12*13/2)) {
-                power = 13 - j;
-                break;
-            }
-        }
-
-        left = l;
-        top = t;
-        right = r;
-        bottom = b;
+        power = MainActivity.power(type,id);
     }
 
     int getPower() {
@@ -51,7 +38,7 @@ class Card {
         return power - c.getPower();
     }
 
-    void draw() {
+    void draw(float left, float top, float right, float bottom) {
         Canvas c = MainActivity.canvas;
 
         float sideW = (right - left) - (bottom - top);

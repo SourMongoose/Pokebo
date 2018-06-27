@@ -6,7 +6,9 @@ package com.chrisx.pokebo;
  */
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
@@ -25,12 +27,17 @@ import android.view.MotionEvent;
 import android.view.WindowManager;
 import android.widget.LinearLayout;
 
+import com.google.android.gms.auth.api.Auth;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
 import com.google.android.gms.auth.api.signin.GoogleSignInClient;
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
+import com.google.android.gms.auth.api.signin.GoogleSignInResult;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class MainActivity extends Activity {
     private Bitmap bmp;
@@ -42,11 +49,14 @@ public class MainActivity extends Activity {
     private SharedPreferences.Editor editor;
 
     private GoogleSignInAccount acc;
-    private boolean signInAttempted = false;
+    private GoogleSignInOptions gsio;
+    private GoogleSignInClient gsic;
+    private final int RC_SIGN_IN = 1234;
 
     static int N[] = {33, 52, 89};
     static Bitmap[][] sprites;
     static Bitmap[] icons, cards;
+    static Bitmap pokebo, deck, gplay;
 
     static Typeface font;
 
@@ -61,12 +71,16 @@ public class MainActivity extends Activity {
 
     private float downX, downY;
 
-    private Paint title;
+    private Paint play;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        //Set up Google Play sign-in
+        gsio = new GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_GAMES_SIGN_IN).build();
+        gsic = GoogleSignIn.getClient(this, gsio);
 
         //creates the bitmap
         //note: Star 4.5 is 480x854
@@ -107,6 +121,13 @@ public class MainActivity extends Activity {
             cards[i] = BitmapFactory.decodeResource(res, R.drawable.card_fire+i);
         }
 
+        pokebo = Bitmap.createScaledBitmap(BitmapFactory.decodeResource(res, R.drawable.pokebo),
+                Math.round(c480(304)),Math.round(c480(118)),false);
+        deck = Bitmap.createScaledBitmap(BitmapFactory.decodeResource(res, R.drawable.deck),
+                Math.round(c480(60)),Math.round(c480(60)),false);
+        gplay = Bitmap.createScaledBitmap(BitmapFactory.decodeResource(res, R.drawable.googleplay),
+                Math.round(c480(60)),Math.round(c480(60)),false);
+
         nanosecondsPerFrame = (long)1e9 / FRAMES_PER_SECOND;
 
         //initialize fonts
@@ -115,7 +136,9 @@ public class MainActivity extends Activity {
         canvas.drawColor(Color.BLACK);
 
         //pre-defined paints
-        title = newPaint(Color.WHITE);
+        play = newPaint(Color.WHITE);
+        play.setTextAlign(Paint.Align.CENTER);
+        play.setTextSize(c480(75));
 
 
         final Handler handler = new Handler();
@@ -149,8 +172,6 @@ public class MainActivity extends Activity {
         new Thread(new Runnable() {
             @Override
             public void run() {
-                drawTitleMenu();
-
                 //draw loop
                 while (!menu.equals("quit")) {
                     final long startTime = System.nanoTime();
@@ -159,7 +180,7 @@ public class MainActivity extends Activity {
                         @Override
                         public void run() {
                             if (!paused) {
-                                canvas.drawColor(Color.WHITE);
+                                canvas.drawColor(Color.rgb(100,200,100));
 
                                 if (menu.equals("start")) {
                                     drawTitleMenu();
@@ -195,7 +216,9 @@ public class MainActivity extends Activity {
 
     @Override
     public void onBackPressed() {
-
+        if (menu.equals("deck")) {
+            menu = "start";
+        }
     }
 
     @Override
@@ -205,6 +228,16 @@ public class MainActivity extends Activity {
         float Y = event.getY()*scaleFactor;
         int action = event.getAction();
 
+        if (menu.equals("start")) {
+            if (action == MotionEvent.ACTION_DOWN) {
+                if (X < c480(100) && Y < c480(100)) {
+                    menu = "deck";
+                } else if (X > w()-c480(100) && Y < c480(100)) {
+                    startSignInIntent();
+                }
+            }
+        }
+
         return true;
     }
 
@@ -213,9 +246,7 @@ public class MainActivity extends Activity {
     }
 
     private void signInSilently() {
-        GoogleSignInClient signInClient = GoogleSignIn.getClient(this,
-                GoogleSignInOptions.DEFAULT_GAMES_SIGN_IN);
-        signInClient.silentSignIn().addOnCompleteListener(this,
+        gsic.silentSignIn().addOnCompleteListener(this,
                 new OnCompleteListener<GoogleSignInAccount>() {
                     @Override
                     public void onComplete(@NonNull Task<GoogleSignInAccount> task) {
@@ -225,9 +256,42 @@ public class MainActivity extends Activity {
                         } else {
                             // Player will need to sign-in explicitly using via UI
                         }
-                        signInAttempted = true;
                     }
                 });
+    }
+
+    private void startSignInIntent() {
+        Intent intent = gsic.getSignInIntent();
+        startActivityForResult(intent, RC_SIGN_IN);
+    }
+
+    private void signOut() {
+        gsic.signOut().addOnCompleteListener(this,
+                new OnCompleteListener<Void>() {
+                    @Override
+                    public void onComplete(@NonNull Task<Void> task) {
+                        // at this point, the user is signed out.
+                    }
+                });
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == RC_SIGN_IN) {
+            GoogleSignInResult result = Auth.GoogleSignInApi.getSignInResultFromIntent(data);
+            if (result.isSuccess()) {
+                // The signed in account is stored in the result.
+                acc = result.getSignInAccount();
+            } else {
+                String message = result.getStatus().getStatusMessage();
+                if (message == null || message.isEmpty()) {
+                    message = getString(R.string.signin_other_error);
+                }
+                new AlertDialog.Builder(this).setMessage(message)
+                        .setNeutralButton(android.R.string.ok, null).show();
+            }
+        }
     }
 
     private Point getAppUsableScreenSize(Context context) {
@@ -255,6 +319,14 @@ public class MainActivity extends Activity {
         return p;
     }
 
+    static int power(int type, int id) {
+        int n = N[type];
+        for (int j = 1; j < 13; j++)
+            if (id*1./n < j*(j+1)/2*1./(12*13/2))
+                return 13 - j;
+        return 1;
+    }
+
     static int typeToInt(String t) {
         return t.equals("fire") ? 0 : t.equals("grass") ? 1 : 2;
     }
@@ -274,13 +346,39 @@ public class MainActivity extends Activity {
         return Math.PI/180*deg;
     }
 
-    private void drawTitleMenu() {
-        Card c1 = new Card(1,35,w()/2-c480(368),h()/2-c480(220),w()/2+c480(-32),h()/2+c480(20));
-        Card c2 = new Card(0,15,w()/2-c480(168),h()/2-c480(120),w()/2+c480(168),h()/2+c480(120));
-        Card c3 = new Card(2,4,w()/2-c480(-32),h()/2-c480(20),w()/2+c480(368),h()/2+c480(220));
+    private List<Card> starterDeck() {
+        List<Card> list = new ArrayList<>();
 
-        if (isSignedIn()) c1.draw();
-        c2.draw();
-        c3.draw();
+        //For each type:
+        for (int type = 0; type < 3; type++) {
+            //Add one card each of power 2, 3-4, and 5-6
+            int a = 2, b = (int)(Math.random()*2+3), c = (int)(Math.random()*2+5);
+
+            int id;
+            do {id = (int)(Math.random()*N[type]);} while (power(type,id) != a);
+            list.add(new Card(type,id));
+            do {id = (int)(Math.random()*N[type]);} while (power(type,id) != b);
+            list.add(new Card(type,id));
+            do {id = (int)(Math.random()*N[type]);} while (power(type,id) != c);
+            list.add(new Card(type,id));
+        }
+
+        return list;
+    }
+
+    private void drawTitleMenu() {
+        //title
+        canvas.drawBitmap(pokebo,w()/2-pokebo.getWidth()/2,h()/3-pokebo.getHeight()/2,null);
+
+        //play
+        play.setAlpha(255);
+        canvas.drawText("SINGLEPLAYER",w()/2,h()*4/6,play);
+        if (!isSignedIn()) play.setAlpha(50);
+        canvas.drawText("MULTIPLAYER",w()/2,h()*5/6,play);
+
+        //view deck
+        canvas.drawBitmap(deck,c480(20),c480(20),null);
+        //sign in/out
+        canvas.drawBitmap(gplay,w()-c480(80),c480(20),null);
     }
 }
