@@ -58,7 +58,7 @@ public class MainActivity extends Activity {
     static int N[] = {33, 52, 89};
     static Bitmap[][] sprites;
     static Bitmap[] icons, cards;
-    static Bitmap pokebo, deck, gplay;
+    static Bitmap pokebo, deck, gplay, loggedin;
 
     static Typeface font;
 
@@ -134,6 +134,8 @@ public class MainActivity extends Activity {
         deck = Bitmap.createScaledBitmap(BitmapFactory.decodeResource(res, R.drawable.deck),
                 Math.round(c480(60)),Math.round(c480(60)),false);
         gplay = Bitmap.createScaledBitmap(BitmapFactory.decodeResource(res, R.drawable.googleplay),
+                Math.round(c480(60)),Math.round(c480(60)),false);
+        loggedin = Bitmap.createScaledBitmap(BitmapFactory.decodeResource(res, R.drawable.loggedin),
                 Math.round(c480(60)),Math.round(c480(60)),false);
 
         nanosecondsPerFrame = (long)1e9 / FRAMES_PER_SECOND;
@@ -267,7 +269,8 @@ public class MainActivity extends Activity {
                 }
                 //sign in to google play
                 else if (X > w()-c480(100) && Y < c480(100)) {
-                    startSignInIntent();
+                    if (isSignedIn()) signOut();
+                    else startSignInIntent();
                 }
                 //singleplayer mode
                 else if (X > w()/2-sp.width()/2 && X < w()/2+sp.width()/2
@@ -329,7 +332,6 @@ public class MainActivity extends Activity {
                 acc = result.getSignInAccount();
             } else {
                 String message = result.getStatus().getStatusMessage();
-                Log.i("status",result.getStatus().toString());
                 if (message == null || message.isEmpty()) {
                     message = getString(R.string.signin_other_error);
                 }
@@ -438,6 +440,7 @@ public class MainActivity extends Activity {
         //view deck
         canvas.drawBitmap(deck,c480(20),c480(20),null);
         //sign in/out
+        if (isSignedIn()) canvas.drawBitmap(loggedin,w()-c480(80),c480(20),null);
         canvas.drawBitmap(gplay,w()-c480(80),c480(20),null);
     }
 }
