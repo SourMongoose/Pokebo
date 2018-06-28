@@ -63,7 +63,7 @@ public class MainActivity extends Activity {
     static int N[] = {33, 52, 89};
     static Bitmap[][] sprites;
     static Bitmap[] icons, cards, trainers;
-    static Bitmap pokebo, deck, gplay, loggedin, card_back, back, left, right;
+    static Bitmap pokebo, deck, gplay, loggedin, card_back, back, left, right, quick, create, join;
 
     static Typeface font;
 
@@ -84,7 +84,7 @@ public class MainActivity extends Activity {
 
     private float downX, downY;
 
-    private Paint w50, w75, w125, b25, b50, b100;
+    private Paint w50, w75, w125, b25, b50, b75, b100, line2;
 
     private List<Card> playerDeck;
     private List<Player> players;
@@ -158,6 +158,12 @@ public class MainActivity extends Activity {
                 Math.round(c480(60)),Math.round(c480(60)),false);
         right = Bitmap.createScaledBitmap(BitmapFactory.decodeResource(res, R.drawable.right),
                 Math.round(c480(60)),Math.round(c480(60)),false);
+        quick = Bitmap.createScaledBitmap(BitmapFactory.decodeResource(res, R.drawable.quick),
+                Math.round(c480(128)),Math.round(c480(128)),false);
+        create = Bitmap.createScaledBitmap(BitmapFactory.decodeResource(res, R.drawable.create),
+                Math.round(c480(128)),Math.round(c480(128)),false);
+        join = Bitmap.createScaledBitmap(BitmapFactory.decodeResource(res, R.drawable.join),
+                Math.round(c480(128)),Math.round(c480(128)),false);
 
         nanosecondsPerFrame = (long)1e9 / FRAMES_PER_SECOND;
 
@@ -184,8 +190,14 @@ public class MainActivity extends Activity {
         b25 = new Paint(b50);
         b25.setTextSize(c480(25));
 
+        b75 = new Paint(b50);
+        b75.setTextSize(c480(75));
+
         b100 = new Paint(b50);
         b100.setTextSize(c480(100));
+
+        line2 = newPaint(Color.BLACK);
+        line2.setStrokeWidth(c480(2));
 
         playerDeck = starterDeck();
         playerDeck.addAll(starterDeck());
@@ -286,6 +298,8 @@ public class MainActivity extends Activity {
                                         //draw1PLobby();
                                     } else if (menu.equals("1P_game")) {
                                         draw1PGame();
+                                    } else if (menu.equals("MP_select")) {
+                                        drawMPSelect();
                                     } else if (menu.equals("gameover")) {
                                         drawGameOver();
                                     }
@@ -444,6 +458,24 @@ public class MainActivity extends Activity {
                     }
                 }
             }
+        } else if (menu.equals("MP_select")) {
+            //back to menu
+            if (X < c480(100) && Y < c480(100)) {
+                goToMenu("start");
+            } else if (Y > c480(100) && Y < c480(430)) {
+                //quick match
+                if (X < w()/3) {
+
+                }
+                //create private room
+                else if (X < w()*2/3) {
+
+                }
+                //join private room (view invitations)
+                else {
+
+                }
+            }
         } else if (menu.equals("gameover")) {
             if (action == MotionEvent.ACTION_DOWN) {
                 Rect pa = new Rect(), bm = new Rect();
@@ -553,10 +585,6 @@ public class MainActivity extends Activity {
         return 1;
     }
 
-    static int typeToInt(String t) {
-        return t.equals("fire") ? 0 : t.equals("grass") ? 1 : 2;
-    }
-
     static float c480(float f) {
         return h() / (480 / f);
     }
@@ -566,10 +594,6 @@ public class MainActivity extends Activity {
 
     private int getCharacter() {
         return sharedPref.getInt("character", -1);
-    }
-
-    private long getHighScore() {
-        return sharedPref.getInt("high_score", 0);
     }
 
     private double toRad(double deg) {
@@ -723,7 +747,6 @@ public class MainActivity extends Activity {
         canvas.drawText("get you started.", w()/2, c480(150), b50);
     }
 
-    /*
     private void draw1PLobby() {
         //player's character
         //canvas.drawText("Me",w()/8,h()/2-c480(89),b25);
@@ -747,7 +770,6 @@ public class MainActivity extends Activity {
         canvas.drawText("Ready!",w()/2,h()-c480(30),w75);
         w75.setAlpha(255);
     }
-    */
 
     private void draw1PGame() {
         //draw hands
@@ -772,6 +794,27 @@ public class MainActivity extends Activity {
                 middle[1].drawBack(x2-w/2,h()/2-h/2,x2+w/2,h()/2+h/2);
             }
         }
+    }
+
+    private void drawMPSelect() {
+        canvas.drawText("MULTIPLAYER",w()/2,c480(55),b50);
+
+        canvas.drawBitmap(back,c480(20),c480(20),null);
+
+        canvas.drawBitmap(quick,w()/6-c480(64),h()/2-c480(64),null);
+        canvas.drawText("Quick",w()/6,c480(380),b25);
+        canvas.drawText("Match",w()/6,c480(405),b25);
+
+        canvas.drawBitmap(create,w()/2-c480(64),h()/2-c480(64),null);
+        canvas.drawText("Create",w()/2,c480(380),b25);
+        canvas.drawText("Room",w()/2,c480(405),b25);
+
+        canvas.drawBitmap(join,w()*5/6-c480(64),h()/2-c480(64),null);
+        canvas.drawText("Join",w()*5/6,c480(380),b25);
+        canvas.drawText("Room",w()*5/6,c480(405),b25);
+
+        canvas.drawLine(w()/3,c480(100),w()/3,c480(430),line2);
+        canvas.drawLine(w()*2/3,c480(100),w()*2/3,c480(430),line2);
     }
 
     private void drawGameOver() {
