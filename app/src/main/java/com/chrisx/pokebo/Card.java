@@ -6,7 +6,7 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.RectF;
 
-class Card {
+class Card implements Comparable<Card> {
     private int type, id, power;
     private Bitmap pokemon, icon, card;
 
@@ -38,6 +38,10 @@ class Card {
         return power - c.getPower();
     }
 
+    public int compareTo(Card c) {
+        return (power*3+type) - (c.getPower()*3+c.getType());
+    }
+
     void draw(float left, float top, float right, float bottom) {
         Canvas c = MainActivity.canvas;
 
@@ -51,5 +55,10 @@ class Card {
         p.setTextAlign(Paint.Align.CENTER);
         p.setTextSize(sideW*.8f);
         c.drawText(power+"",left+sideW/2,(bottom+top)/2-sideW*.2f,p);
+    }
+
+    void drawBack(float left, float top, float right, float bottom) {
+        Canvas c = MainActivity.canvas;
+        c.drawBitmap(MainActivity.card_back,null,new RectF(left,top,right,bottom),null);
     }
 }

@@ -42,6 +42,7 @@ import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class MainActivity extends Activity {
@@ -62,7 +63,7 @@ public class MainActivity extends Activity {
     static int N[] = {33, 52, 89};
     static Bitmap[][] sprites;
     static Bitmap[] icons, cards, trainers;
-    static Bitmap pokebo, deck, gplay, loggedin;
+    static Bitmap pokebo, deck, gplay, loggedin, card_back, back, left, right;
 
     static Typeface font;
 
@@ -79,13 +80,15 @@ public class MainActivity extends Activity {
 
     private int TRANSITION_MAX = FRAMES_PER_SECOND * 2 / 3;
     private int transition = TRANSITION_MAX / 2;
+    private int animation;
 
     private float downX, downY;
 
-    private Paint w75, b25, b50, b100;
+    private Paint w50, w75, w125, b25, b50, b100;
 
     private List<Card> playerDeck;
     private List<Player> players;
+    private Card[] middle = new Card[2];
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -148,6 +151,13 @@ public class MainActivity extends Activity {
                 Math.round(c480(60)),Math.round(c480(60)),false);
         loggedin = Bitmap.createScaledBitmap(BitmapFactory.decodeResource(res, R.drawable.loggedin),
                 Math.round(c480(60)),Math.round(c480(60)),false);
+        card_back = BitmapFactory.decodeResource(res, R.drawable.card_back);
+        back = Bitmap.createScaledBitmap(BitmapFactory.decodeResource(res, R.drawable.back),
+                Math.round(c480(60)),Math.round(c480(60)),false);
+        left = Bitmap.createScaledBitmap(BitmapFactory.decodeResource(res, R.drawable.left),
+                Math.round(c480(60)),Math.round(c480(60)),false);
+        right = Bitmap.createScaledBitmap(BitmapFactory.decodeResource(res, R.drawable.right),
+                Math.round(c480(60)),Math.round(c480(60)),false);
 
         nanosecondsPerFrame = (long)1e9 / FRAMES_PER_SECOND;
 
@@ -161,6 +171,12 @@ public class MainActivity extends Activity {
         w75.setTextAlign(Paint.Align.CENTER);
         w75.setTextSize(c480(75));
 
+        w50 = new Paint(w75);
+        w50.setTextSize(c480(50));
+
+        w125 = new Paint(w75);
+        w125.setTextSize(c480(125));
+
         b50 = newPaint(Color.BLACK);
         b50.setTextAlign(Paint.Align.CENTER);
         b50.setTextSize(c480(50));
@@ -172,6 +188,7 @@ public class MainActivity extends Activity {
         b100.setTextSize(c480(100));
 
         playerDeck = starterDeck();
+        playerDeck.addAll(starterDeck());
 
 
         editor.putInt("character",-1);
@@ -191,6 +208,40 @@ public class MainActivity extends Activity {
                         @Override
                         public void run() {
                             if (!paused) {
+                                if (menu.equals("1P_game")) {
+                                    if (animation == 0 && middle[0] != null && middle[1] != null) {
+                                        //find winner
+                                        if (middle[0].compare(middle[1]) < 0) {
+                                            players.get(1).addPoint(middle[1].getType());
+                                        } else if (middle[0].compare(middle[1]) > 0) {
+                                            players.get(0).addPoint(middle[0].getType());
+                                        }
+
+                                        animation = FRAMES_PER_SECOND;
+                                    } else if (animation > 0) {
+                                        animation--;
+                                        if (animation == 0) {
+                                            middle = new Card[2];
+                                            frameCount = 0;
+
+                                            //either player or CPU won
+                                            if (players.get(0).won() || players.get(1).won()) {
+                                                goToMenu("gameover");
+                                            }
+                                        }
+                                    }
+
+                                    //have bot play highest card
+                                    if (frameCount > FRAMES_PER_SECOND*2 && middle[1] == null) {
+                                        int maxIndex = 0;
+                                        for (int i = 1; i < 5; i++) {
+                                            if (players.get(1).getCards().get(i).getPower() >
+                                                    players.get(1).getCards().get(maxIndex).getPower())
+                                                maxIndex = i;
+                                        }
+                                        middle[1] = players.get(1).play(maxIndex);
+                                    }
+                                }
 
                                 //fading transition effect
                                 if (transition > 0) {
@@ -232,9 +283,11 @@ public class MainActivity extends Activity {
                                     } else if (menu.equals("greeting")) {
                                         drawGreeting();
                                     } else if (menu.equals("1P_lobby")) {
-                                        draw1PLobby();
+                                        //draw1PLobby();
                                     } else if (menu.equals("1P_game")) {
                                         draw1PGame();
+                                    } else if (menu.equals("gameover")) {
+                                        drawGameOver();
                                     }
                                 }
 
@@ -287,6 +340,8 @@ public class MainActivity extends Activity {
     @Override
     //handles touch events
     public boolean onTouchEvent(MotionEvent event) {
+        if (transition > 0) return true;
+
         float X = event.getX()*scaleFactor;
         float Y = event.getY()*scaleFactor;
         int action = event.getAction();
@@ -309,12 +364,27 @@ public class MainActivity extends Activity {
                 //singleplayer mode
                 else if (X > w()/2-sp.width()/2 && X < w()/2+sp.width()/2
                         && Y > h()*4/6-sp.height() && Y < h()*4/6) {
-                    goToMenu("1P_lobby");
+                    goToMenu("1P_game");
                 }
                 //multiplayer mode
                 else if (X > w()/2-mp.width()/2 && X < w()/2+mp.width()/2
                         && Y > h()*5/6-mp.height() && Y < h()*5/6) {
                     if (isSignedIn()) goToMenu("MP_select");
+                }
+            }
+        } else if (menu.equals("deck")) {
+            if (action == MotionEvent.ACTION_DOWN) {
+                //back to home
+                if (X < c480(100) && Y < c480(100)) {
+                    goToMenu("start");
+                }
+                //previous page
+                else if (page > 0 && X < c480(100) && Y > c480(190) && Y < c480(290)) {
+                    page--;
+                }
+                //next page
+                else if ((page+1)*12 < playerDeck.size() && X > w()-c480(100) && Y > c480(190) && Y < c480(290)) {
+                    page++;
                 }
             }
         } else if (menu.equals("select")) {
@@ -339,7 +409,7 @@ public class MainActivity extends Activity {
             if (action == MotionEvent.ACTION_DOWN) {
                 goToMenu("start");
             }
-        } else if (menu.equals("1P_lobby")) {
+        } /*else if (menu.equals("1P_lobby")) {
             if (action == MotionEvent.ACTION_DOWN) {
                 //Toggle bots
                 for (int i = 0; i < 3; i++) {
@@ -362,13 +432,43 @@ public class MainActivity extends Activity {
                     goToMenu("1P_game");
                 }
             }
+        }*/else if (menu.equals("1P_game")) {
+            if (action == MotionEvent.ACTION_DOWN && middle[0] == null) {
+                float margin = MainActivity.c480(80) / 6;
+                float w = MainActivity.c480(112), h = MainActivity.c480(80);
+                for (int i = 0; i < 5; i++) {
+                    if (X > margin && X < w+margin && Y > margin+i*(h+margin) && Y < (i+1)*(h+margin)) {
+                        //play card
+                        middle[0] = players.get(0).play(i);
+                        break;
+                    }
+                }
+            }
+        } else if (menu.equals("gameover")) {
+            if (action == MotionEvent.ACTION_DOWN) {
+                Rect pa = new Rect(), bm = new Rect();
+                w50.getTextBounds("Play Again?",0,11,pa);
+                w50.getTextBounds("Back to Menu",0,12,bm);
+
+                if (X > w()/2-pa.width()/2 && X < w()/2+pa.width()/2
+                        && Y > c480(330)+pa.top && Y < c480(330)+pa.bottom) {
+                    goToMenu("1P_game");
+                } else if (X > w()/2-bm.width()/2 && X < w()/2+bm.width()/2
+                        && Y > c480(400)+bm.top && Y < c480(400)+bm.bottom) {
+                    goToMenu("start");
+                }
+            }
         }
 
         return true;
     }
 
+    private GoogleSignInAccount getAcc() {
+        return GoogleSignIn.getLastSignedInAccount(this);
+    }
+
     private boolean isSignedIn() {
-        return GoogleSignIn.getLastSignedInAccount(this) != null;
+        return getAcc() != null;
     }
 
     private void signInSilently() {
@@ -479,11 +579,13 @@ public class MainActivity extends Activity {
     private void goToMenu(String s) {
         transition = TRANSITION_MAX;
 
-        if (s.equals("1P_lobby") || s.equals("MP_select")) {
+        if (s.equals("1P_game") || s.equals("MP_select")) {
             if (getCharacter() == -1) {
                 s = "select";
                 selected = -1;
-            } else if (s.equals("1P_lobby")) {
+            } else if (s.equals("1P_game")) {
+                bots = new int[]{(int)(Math.random()*3)};
+                /*
                 if (bots == null) {
                     bots = new int[]{(int)(Math.random()*3), -1, -1};
                 } else {
@@ -491,20 +593,30 @@ public class MainActivity extends Activity {
                         if (bots[i] >= 0) bots[i] = (int)(Math.random()*3);
                     }
                 }
+                */
             } else if (s.equals("MP_select")) {
-                rtmc = Games.getRealTimeMultiplayerClient(this, acc);
+                rtmc = Games.getRealTimeMultiplayerClient(this, getAcc());
             }
         } else if (s.equals("deck")) {
+            Collections.sort(playerDeck);
             page = 0;
-        } else if (s.equals("1P_game")) {
+        }
+
+        if (s.equals("1P_game")) {
             players = new ArrayList<>();
 
             //add player
             players.add(new Player(getCharacter(),playerDeck));
 
             //add bots
-            for (int i = 0; i < 3; i++)
+            for (int i = 0; i < bots.length; i++)
                 if (bots[i] >= 0) players.add(new Player(bots[i]));
+
+            frameCount = 0;
+        }
+
+        if (s.equals("gameover")) {
+            transition = 0;
         }
 
         menu = s;
@@ -523,8 +635,8 @@ public class MainActivity extends Activity {
 
         //For each type:
         for (int type = 0; type < 3; type++) {
-            //Add one card each of power 2, 3-4, and 5-6
-            int a = 2, b = (int)(Math.random()*2+3), c = (int)(Math.random()*2+5);
+            //Add one card each of power 1-2, 3-4, and 5-6
+            int a = (int)(Math.random()*2+1), b = (int)(Math.random()*2+3), c = (int)(Math.random()*2+5);
 
             list.add(getCard(type,a));
             list.add(getCard(type,b));
@@ -552,7 +664,15 @@ public class MainActivity extends Activity {
     }
 
     private void drawDeck() {
-        canvas.drawText("My Cards", w()/2, c480(50), b50);
+        canvas.drawText("My Cards", w()/2, c480(55), b50);
+
+        //back to home
+        canvas.drawBitmap(back,c480(20),c480(20),null);
+
+        //previous page
+        if (page > 0) canvas.drawBitmap(left,c480(20),c480(210),null);
+        //next page
+        if ((page+1)*12 < playerDeck.size()) canvas.drawBitmap(right,w()-c480(80),c480(210),null);
 
         float margin = c480(20);
         float w = c480(112), h = c480(80);
@@ -603,6 +723,7 @@ public class MainActivity extends Activity {
         canvas.drawText("get you started.", w()/2, c480(150), b50);
     }
 
+    /*
     private void draw1PLobby() {
         //player's character
         //canvas.drawText("Me",w()/8,h()/2-c480(89),b25);
@@ -626,9 +747,39 @@ public class MainActivity extends Activity {
         canvas.drawText("Ready!",w()/2,h()-c480(30),w75);
         w75.setAlpha(255);
     }
+    */
 
     private void draw1PGame() {
         //draw player hand
-        players.get(0).drawHand();
+        players.get(0).drawHand(true);
+        players.get(0).drawPoints(true);
+
+        //opponent's hand
+        players.get(1).drawHand(false);
+        players.get(1).drawPoints(false);
+
+        //draw middle
+        float w = c480(112), h = c480(80), x1 = w()/2-c480(70), x2 = w()/2+c480(70);
+        if (middle[0] != null) {
+            middle[0].draw(x1-w/2,h()/2-h/2,x1+w/2,h()/2+h/2);
+        }
+        if (middle[1] != null) {
+            if (middle[0] != null) {
+                middle[1].draw(x2-w/2,h()/2-h/2,x2+w/2,h()/2+h/2);
+            } else {
+                middle[1].drawBack(x2-w/2,h()/2-h/2,x2+w/2,h()/2+h/2);
+            }
+        }
+    }
+
+    private void drawGameOver() {
+        draw1PGame();
+        canvas.drawColor(Color.argb((int)Math.min(frameCount*2,150),0,0,0));
+
+        String msg = players.get(0).won() ? "You win!" : "You lost.";
+        canvas.drawText(msg, w()/2, c480(230), w125);
+
+        canvas.drawText("Play Again?", w()/2, c480(330), w50);
+        canvas.drawText("Back to Menu", w()/2, c480(400), w50);
     }
 }
