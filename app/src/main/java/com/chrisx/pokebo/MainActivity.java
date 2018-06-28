@@ -750,12 +750,14 @@ public class MainActivity extends Activity {
     */
 
     private void draw1PGame() {
-        //draw player hand
-        players.get(0).drawHand(true);
+        //draw hands
+        if (middle[0] == null) players.get(0).drawHand(true);
+        else players.get(0).drawHand(true,4);
         players.get(0).drawPoints(true);
 
         //opponent's hand
-        players.get(1).drawHand(false);
+        if (middle[1] == null) players.get(1).drawHand(false);
+        else players.get(1).drawHand(false,4);
         players.get(1).drawPoints(false);
 
         //draw middle

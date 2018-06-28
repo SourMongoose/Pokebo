@@ -64,6 +64,19 @@ class Player {
             }
         }
     }
+    void drawHand(boolean player, int n) {
+        float margin = MainActivity.c480(80) / 6;
+        float w = MainActivity.c480(112), h = MainActivity.c480(80);
+        if (player) {
+            for (int i = 0; i < n; i++) {
+                cards.get(i).draw(margin,margin+i*(h+margin),margin+w,(i+1)*(h+margin));
+            }
+        } else {
+            for (int i = 0; i < n; i++) {
+                cards.get(i).drawBack(MainActivity.w()-margin-w,margin+i*(h+margin),MainActivity.w()-margin,(i+1)*(h+margin));
+            }
+        }
+    }
 
     void drawPoints(boolean player) {
         Canvas c = MainActivity.canvas;
