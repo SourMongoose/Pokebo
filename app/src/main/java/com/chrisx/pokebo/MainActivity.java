@@ -85,6 +85,7 @@ public class MainActivity extends Activity {
     private Paint w75, b25, b50, b100;
 
     private List<Card> playerDeck;
+    private List<Player> players;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -232,6 +233,8 @@ public class MainActivity extends Activity {
                                         drawGreeting();
                                     } else if (menu.equals("1P_lobby")) {
                                         draw1PLobby();
+                                    } else if (menu.equals("1P_game")) {
+                                        draw1PGame();
                                     }
                                 }
 
@@ -338,6 +341,7 @@ public class MainActivity extends Activity {
             }
         } else if (menu.equals("1P_lobby")) {
             if (action == MotionEvent.ACTION_DOWN) {
+                //Toggle bots
                 for (int i = 0; i < 3; i++) {
                     float mid = w()/8 * (i*2 + 3);
                     if (X >= mid-c480(64) && X <= mid+c480(64)
@@ -348,6 +352,14 @@ public class MainActivity extends Activity {
 
                         break;
                     }
+                }
+
+                //Start game
+                Rect r = new Rect();
+                w75.getTextBounds("Ready!",0,6,r);
+                if (X > w()/2-r.width()/2 && X < w()/2+r.width()/2
+                        && Y > c480(450)+r.top && Y < c480(450)+r.bottom) {
+                    goToMenu("1P_game");
                 }
             }
         }
@@ -484,12 +496,21 @@ public class MainActivity extends Activity {
             }
         } else if (s.equals("deck")) {
             page = 0;
+        } else if (s.equals("1P_game")) {
+            players = new ArrayList<>();
+
+            //add player
+            players.add(new Player(getCharacter(),playerDeck));
+
+            //add bots
+            for (int i = 0; i < 3; i++)
+                if (bots[i] >= 0) players.add(new Player(bots[i]));
         }
 
         menu = s;
     }
 
-    private Card getCard(int type, int p) {
+    static Card getCard(int type, int p) {
         int id;
         do {
             id = (int)(Math.random()*N[type]);
@@ -497,7 +518,7 @@ public class MainActivity extends Activity {
         return new Card(type,id);
     }
 
-    private List<Card> starterDeck() {
+    static List<Card> starterDeck() {
         List<Card> list = new ArrayList<>();
 
         //For each type:
@@ -602,7 +623,12 @@ public class MainActivity extends Activity {
 
         //start button
         if (bots[0] == -1 && bots[1] == -1 && bots[2] == -1) w75.setAlpha(50);
-        canvas.drawText("START GAME",w()/2,h()-c480(30),w75);
+        canvas.drawText("Ready!",w()/2,h()-c480(30),w75);
         w75.setAlpha(255);
+    }
+
+    private void draw1PGame() {
+        //draw player hand
+        players.get(0).drawHand();
     }
 }
