@@ -18,6 +18,7 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Point;
 import android.graphics.Rect;
+import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.graphics.drawable.BitmapDrawable;
 import android.os.Bundle;
@@ -35,6 +36,8 @@ import com.google.android.gms.auth.api.signin.GoogleSignInAccount;
 import com.google.android.gms.auth.api.signin.GoogleSignInClient;
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions;
 import com.google.android.gms.auth.api.signin.GoogleSignInResult;
+import com.google.android.gms.games.Games;
+import com.google.android.gms.games.RealTimeMultiplayerClient;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 
@@ -54,10 +57,11 @@ public class MainActivity extends Activity {
     private GoogleSignInOptions gsio;
     private GoogleSignInClient gsic;
     private final int RC_SIGN_IN = 1234;
+    private RealTimeMultiplayerClient rtmc;
 
     static int N[] = {33, 52, 89};
     static Bitmap[][] sprites;
-    static Bitmap[] icons, cards;
+    static Bitmap[] icons, cards, trainers;
     static Bitmap pokebo, deck, gplay, loggedin;
 
     static Typeface font;
@@ -66,6 +70,8 @@ public class MainActivity extends Activity {
     private long frameCount = 0;
 
     private String menu = "start";
+    private int selected, page;
+    private int bots[];
 
     //frame data
     private static final int FRAMES_PER_SECOND = 60;
@@ -76,7 +82,7 @@ public class MainActivity extends Activity {
 
     private float downX, downY;
 
-    private Paint play;
+    private Paint w75, b25, b50, b100;
 
     private List<Card> playerDeck;
 
@@ -128,6 +134,10 @@ public class MainActivity extends Activity {
         for (int i = 0; i < cards.length; i++) {
             cards[i] = BitmapFactory.decodeResource(res, R.drawable.card_fire+i);
         }
+        trainers = new Bitmap[3];
+        for (int i = 0; i < trainers.length; i++) {
+            trainers[i] = BitmapFactory.decodeResource(res, R.drawable.trainer_fire+i);
+        }
 
         pokebo = Bitmap.createScaledBitmap(BitmapFactory.decodeResource(res, R.drawable.pokebo),
                 Math.round(c480(304)),Math.round(c480(118)),false);
@@ -146,12 +156,25 @@ public class MainActivity extends Activity {
         canvas.drawColor(Color.BLACK);
 
         //pre-defined paints
-        play = newPaint(Color.WHITE);
-        play.setTextAlign(Paint.Align.CENTER);
-        play.setTextSize(c480(75));
+        w75 = newPaint(Color.WHITE);
+        w75.setTextAlign(Paint.Align.CENTER);
+        w75.setTextSize(c480(75));
+
+        b50 = newPaint(Color.BLACK);
+        b50.setTextAlign(Paint.Align.CENTER);
+        b50.setTextSize(c480(50));
+
+        b25 = new Paint(b50);
+        b25.setTextSize(c480(25));
+
+        b100 = new Paint(b50);
+        b100.setTextSize(c480(100));
 
         playerDeck = starterDeck();
 
+
+        editor.putInt("character",-1);
+        editor.apply();
 
         final Handler handler = new Handler();
 
@@ -201,6 +224,14 @@ public class MainActivity extends Activity {
 
                                     if (menu.equals("start")) {
                                         drawTitleMenu();
+                                    } else if (menu.equals("deck")) {
+                                        drawDeck();
+                                    } else if (menu.equals("select")) {
+                                        drawTrainerSelect();
+                                    } else if (menu.equals("greeting")) {
+                                        drawGreeting();
+                                    } else if (menu.equals("1P_lobby")) {
+                                        draw1PLobby();
                                     }
                                 }
 
@@ -245,7 +276,7 @@ public class MainActivity extends Activity {
 
     @Override
     public void onBackPressed() {
-        if (menu.equals("deck")) {
+        if (menu.equals("deck") || menu.equals("1P_lobby") || menu.equals("MP_select")) {
             goToMenu("start");
         }
     }
@@ -260,8 +291,8 @@ public class MainActivity extends Activity {
         if (menu.equals("start")) {
             if (action == MotionEvent.ACTION_DOWN) {
                 Rect sp = new Rect(), mp = new Rect();
-                play.getTextBounds("SINGLEPLAYER",0,12,sp);
-                play.getTextBounds("MULTIPLAYER",0,11,mp);
+                w75.getTextBounds("SINGLEPLAYER",0,12,sp);
+                w75.getTextBounds("MULTIPLAYER",0,11,mp);
 
                 //view deck
                 if (X < c480(100) && Y < c480(100)) {
@@ -275,12 +306,48 @@ public class MainActivity extends Activity {
                 //singleplayer mode
                 else if (X > w()/2-sp.width()/2 && X < w()/2+sp.width()/2
                         && Y > h()*4/6-sp.height() && Y < h()*4/6) {
-                    goToMenu("singleplayer");
+                    goToMenu("1P_lobby");
                 }
                 //multiplayer mode
                 else if (X > w()/2-mp.width()/2 && X < w()/2+mp.width()/2
                         && Y > h()*5/6-mp.height() && Y < h()*5/6) {
-                    if (isSignedIn()) goToMenu("multiplayer");
+                    if (isSignedIn()) goToMenu("MP_select");
+                }
+            }
+        } else if (menu.equals("select")) {
+            if (action == MotionEvent.ACTION_DOWN) {
+                for (int i = 0; i < 3; i++) {
+                    if (X >= w() / 3 * i && X <= w() / 3 * (i + 1)) {
+                        if (i != selected) selected = i;
+                        else {
+                            editor.putInt("character", i);
+                            editor.apply();
+
+                            playerDeck.add(getCard(getCharacter(),10));
+
+                            goToMenu("greeting");
+                        }
+
+                        break;
+                    }
+                }
+            }
+        } else if (menu.equals("greeting")) {
+            if (action == MotionEvent.ACTION_DOWN) {
+                goToMenu("start");
+            }
+        } else if (menu.equals("1P_lobby")) {
+            if (action == MotionEvent.ACTION_DOWN) {
+                for (int i = 0; i < 3; i++) {
+                    float mid = w()/8 * (i*2 + 3);
+                    if (X >= mid-c480(64) && X <= mid+c480(64)
+                            && Y >= h()/2-c480(64) && Y <= h()/2+c480(64)) {
+                        //Toggle bot
+                        if (bots[i] >= 0) bots[i] = -1;
+                        else bots[i] = (int)(Math.random()*3);
+
+                        break;
+                    }
                 }
             }
         }
@@ -400,6 +467,25 @@ public class MainActivity extends Activity {
     private void goToMenu(String s) {
         transition = TRANSITION_MAX;
 
+        if (s.equals("1P_lobby") || s.equals("MP_select")) {
+            if (getCharacter() == -1) {
+                s = "select";
+                selected = -1;
+            } else if (s.equals("1P_lobby")) {
+                if (bots == null) {
+                    bots = new int[]{(int)(Math.random()*3), -1, -1};
+                } else {
+                    for (int i = 0; i < bots.length; i++) {
+                        if (bots[i] >= 0) bots[i] = (int)(Math.random()*3);
+                    }
+                }
+            } else if (s.equals("MP_select")) {
+                rtmc = Games.getRealTimeMultiplayerClient(this, acc);
+            }
+        } else if (s.equals("deck")) {
+            page = 0;
+        }
+
         menu = s;
     }
 
@@ -432,15 +518,91 @@ public class MainActivity extends Activity {
         canvas.drawBitmap(pokebo,w()/2-pokebo.getWidth()/2,h()/3-pokebo.getHeight()/2,null);
 
         //play
-        play.setAlpha(255);
-        canvas.drawText("SINGLEPLAYER",w()/2,h()*4/6,play);
-        if (!isSignedIn()) play.setAlpha(50);
-        canvas.drawText("MULTIPLAYER",w()/2,h()*5/6,play);
+        canvas.drawText("SINGLEPLAYER",w()/2,h()*4/6,w75);
+        if (!isSignedIn()) w75.setAlpha(50);
+        canvas.drawText("MULTIPLAYER",w()/2,h()*5/6,w75);
+        w75.setAlpha(255);
 
         //view deck
         canvas.drawBitmap(deck,c480(20),c480(20),null);
         //sign in/out
         if (isSignedIn()) canvas.drawBitmap(loggedin,w()-c480(80),c480(20),null);
         canvas.drawBitmap(gplay,w()-c480(80),c480(20),null);
+    }
+
+    private void drawDeck() {
+        canvas.drawText("My Cards", w()/2, c480(50), b50);
+
+        float margin = c480(20);
+        float w = c480(112), h = c480(80);
+        float totalW = w*3+margin*2, totalH = h*4+margin*4;
+
+        for (int r = 0; r < 4; r++) {
+            for (int c = 0; c < 3; c++) {
+                int i = page*12 + r*3 + c;
+                if (i >= playerDeck.size()) return;
+
+                float left = w()/2-totalW/2+(w+margin)*c,
+                        top = h()-totalH+(h+margin)*r;
+                playerDeck.get(i).draw(left,top,left+w,top+h);
+            }
+        }
+    }
+
+    private void drawTrainerSelect() {
+        int[] colors = {
+                Color.rgb(255,170,135),
+                Color.rgb(155,205,165),
+                Color.rgb(165,165,255)
+        };
+
+        //Draw backgrounds and trainer sprites
+        for (int i = 0; i < colors.length; i++) {
+            float x = w()/6*(i*2+1);
+            canvas.drawRect(w()/3*i,0,w()/3*(i+1),h(),newPaint(colors[i]));
+            canvas.drawBitmap(trainers[i],null,new RectF(x-c480(96),h()/2-c480(96),x+c480(96),h()/2+c480(96)),null);
+            if (selected != -1 && selected != i) canvas.drawRect(w()/3*i,0,w()/3*(i+1),h(),newPaint(Color.argb(50,0,0,0)));
+        }
+
+        if (selected == -1) {
+            canvas.drawText("Before we start...", w()/2, c480(50), b50);
+            canvas.drawText("...who are you?", w()/2, c480(100), b50);
+        } else {
+            canvas.drawText("So, is this you?", w()/2, c480(50), b50);
+        }
+    }
+
+    private void drawGreeting() {
+        canvas.drawBitmap(trainers[getCharacter()],null,
+                new RectF(w()/2-c480(300),c480(264),w()/2-c480(108),c480(456)),null);
+        playerDeck.get(playerDeck.size()-1).draw(w()/2-c480(36),c480(216),w()/2+c480(300),c480(456));
+
+        canvas.drawText("Nice to meet you!", w()/2, c480(50), b50);
+        canvas.drawText("Here's something to", w()/2, c480(100), b50);
+        canvas.drawText("get you started.", w()/2, c480(150), b50);
+    }
+
+    private void draw1PLobby() {
+        //player's character
+        //canvas.drawText("Me",w()/8,h()/2-c480(89),b25);
+        canvas.drawBitmap(trainers[getCharacter()],null,
+                new RectF(w()/8-c480(64),h()/2-c480(64),w()/8+c480(64),h()/2+c480(64)),null);
+
+        //bots
+        for (int i = 0; i < 3; i++) {
+            float mid = w()/8 * (i*2 + 3);
+            if (bots[i] >= 0) {
+                canvas.drawText("CPU"+(i+1),mid,h()/2-c480(89),b25);
+                canvas.drawBitmap(trainers[bots[i]],null,
+                        new RectF(mid-c480(64),h()/2-c480(64),mid+c480(64),h()/2+c480(64)),null);
+            } else {
+                canvas.drawText("+",mid,h()/2-(b100.ascent()+b100.descent())/2,b100);
+            }
+        }
+
+        //start button
+        if (bots[0] == -1 && bots[1] == -1 && bots[2] == -1) w75.setAlpha(50);
+        canvas.drawText("START GAME",w()/2,h()-c480(30),w75);
+        w75.setAlpha(255);
     }
 }
