@@ -59,8 +59,6 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 
-import static android.content.ContentValues.TAG;
-
 public class MainActivity extends Activity {
     private Bitmap bmp;
     static Canvas canvas;
@@ -74,6 +72,7 @@ public class MainActivity extends Activity {
             RC_SELECT_PLAYERS = 2,
             RC_WAITING_ROOM = 3,
             RC_INVITATION_INBOX = 4;
+    private String TAG = "Multiplayer";
 
     private GoogleSignInAccount acc;
     private GoogleSignInOptions gsio;
@@ -578,7 +577,10 @@ public class MainActivity extends Activity {
         public void onRoomCreated(int code, @Nullable Room room) {
             // Update UI and internal state based on room updates.
             if (code == GamesCallbackStatusCodes.OK && room != null) {
-                Log.d(TAG, "Room " + room.getRoomId() + " created.");
+                Log.w(TAG, "Room " + room.getRoomId() + " created.");
+                mRoom = room;
+                showWaitingRoom(room, 2);
+                //getClient().join(mJoinedRoomConfig);
             } else {
                 Log.w(TAG, "Error creating room: " + code);
                 // let screen go to sleep
@@ -590,7 +592,8 @@ public class MainActivity extends Activity {
         public void onJoinedRoom(int code, @Nullable Room room) {
             // Update UI and internal state based on room updates.
             if (code == GamesCallbackStatusCodes.OK && room != null) {
-                Log.d(TAG, "Room " + room.getRoomId() + " joined.");
+                Log.w(TAG, "Room " + room.getRoomId() + " joined.");
+                mRoom = room;
                 showWaitingRoom(room, 2);
             } else {
                 Log.w(TAG, "Error joining room: " + code);
@@ -601,13 +604,14 @@ public class MainActivity extends Activity {
 
         @Override
         public void onLeftRoom(int code, @NonNull String roomId) {
-            Log.d(TAG, "Left room" + roomId);
+            Log.w(TAG, "Left room " + roomId);
         }
 
         @Override
         public void onRoomConnected(int code, @Nullable Room room) {
             if (code == GamesCallbackStatusCodes.OK && room != null) {
-                Log.d(TAG, "Room " + room.getRoomId() + " connected.");
+                Log.w(TAG, "Room " + room.getRoomId() + " connected.");
+                mRoom = room;
                 showWaitingRoom(room, 2);
             } else {
                 Log.w(TAG, "Error connecting to room: " + code);
@@ -780,7 +784,7 @@ public class MainActivity extends Activity {
     }
 
     private void showWaitingRoom(Room room, int maxPlayersToStartGame) {
-        Log.i("hey","THE WAITING ROOM IS TRYING TO BE SHOWN");
+        Log.w("hey","THE WAITING ROOM IS TRYING TO BE SHOWN");
         getClient().getWaitingRoomIntent(room, maxPlayersToStartGame)
                 .addOnSuccessListener(new OnSuccessListener<Intent>() {
                     @Override
@@ -865,7 +869,7 @@ public class MainActivity extends Activity {
 
             // Get the invitee list.
             final ArrayList<String> invitees = data.getStringArrayListExtra(Games.EXTRA_PLAYER_IDS);
-            //Log.i("Invitees",invitees.toString());
+            //Log.w("Invitees",invitees.toString());
 
             // Get Automatch criteria.
             int minAutoPlayers = data.getIntExtra(Multiplayer.EXTRA_MIN_AUTOMATCH_PLAYERS, 0);
