@@ -29,6 +29,9 @@ class Card implements Comparable<Card> {
     int getType() {
         return type;
     }
+    int getID() {
+        return id;
+    }
 
     int compare(Card c) {
         int a = type, b = c.getType();

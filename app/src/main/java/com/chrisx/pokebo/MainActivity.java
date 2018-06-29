@@ -264,7 +264,7 @@ public class MainActivity extends Activity {
 
                                             //either player or CPU won
                                             if (players.get(0).won() || players.get(1).won()) {
-                                                goToMenu("gameover");
+                                                goToMenu("1P_gameover");
                                             }
                                         }
                                     }
@@ -278,6 +278,28 @@ public class MainActivity extends Activity {
                                                 maxIndex = i;
                                         }
                                         middle[1] = players.get(1).play(maxIndex);
+                                    }
+                                } else if (menu.equals("MP_game")) {
+                                    if (animation == 0 && middle[0] != null && middle[1] != null) {
+                                        //find winner
+                                        if (middle[0].compare(middle[1]) < 0) {
+                                            players.get(1).addPoint(middle[1].getType());
+                                        } else if (middle[0].compare(middle[1]) > 0) {
+                                            players.get(0).addPoint(middle[0].getType());
+                                        }
+
+                                        animation = FRAMES_PER_SECOND;
+                                    } else if (animation > 0) {
+                                        animation--;
+                                        if (animation == 0) {
+                                            middle = new Card[2];
+                                            frameCount = 0;
+
+                                            //either player won
+                                            if (players.get(0).won() || players.get(1).won()) {
+                                                goToMenu("MP_gameover");
+                                            }
+                                        }
                                     }
                                 }
 
@@ -323,14 +345,18 @@ public class MainActivity extends Activity {
                                     } else if (menu.equals("1P_lobby")) {
                                         //draw1PLobby();
                                     } else if (menu.equals("1P_game")) {
-                                        draw1PGame();
+                                        drawGame();
                                     } else if (menu.equals("MP_select")) {
                                         drawMPSelect();
-                                    } else if (menu.equals("gameover")) {
+                                    } else if (menu.equals("1P_gameover")) {
                                         drawGameOver();
                                     } else if (menu.equals("MP_waiting")) {
                                         canvas.drawBitmap(ludicolo[(int)frameCount/15%6],
                                                 w()/2-ludicolo[0].getWidth()/2,h()/2-ludicolo[0].getHeight()/2,null);
+                                    } else if (menu.equals("MP_game")) {
+                                        drawGame();
+                                    } else if (menu.equals("MP_gameover")) {
+                                        drawGameOver();
                                     }
                                 }
 
@@ -510,7 +536,22 @@ public class MainActivity extends Activity {
                     goToMenu("MP_waiting");
                 }
             }
-        } else if (menu.equals("gameover")) {
+        } else if (menu.equals("MP_game")) {
+            if (action == MotionEvent.ACTION_DOWN && middle[0] == null) {
+                float margin = MainActivity.c480(80) / 6;
+                float w = MainActivity.c480(112), h = MainActivity.c480(80);
+                for (int i = 0; i < 5; i++) {
+                    if (X > margin && X < w+margin && Y > margin+i*(h+margin) && Y < (i+1)*(h+margin)) {
+                        //play card
+                        middle[0] = players.get(0).play(i);
+                        //send card type and ID to other player
+                        sendToAllReliably(new byte[]{(byte)middle[0].getType(),(byte)middle[0].getID()});
+
+                        break;
+                    }
+                }
+            }
+        } else if (menu.equals("1P_gameover")) {
             if (action == MotionEvent.ACTION_DOWN) {
                 Rect pa = new Rect(), bm = new Rect();
                 w50.getTextBounds("Play Again?",0,11,pa);
@@ -522,6 +563,20 @@ public class MainActivity extends Activity {
                 } else if (X > w()/2-bm.width()/2 && X < w()/2+bm.width()/2
                         && Y > c480(400)+bm.top && Y < c480(400)+bm.bottom) {
                     goToMenu("start");
+                }
+            }
+        } else if (menu.equals("MP_gameover")) {
+            if (action == MotionEvent.ACTION_DOWN) {
+                Rect pa = new Rect(), bm = new Rect();
+                w50.getTextBounds("Play Again?",0,11,pa);
+                w50.getTextBounds("Back to Menu",0,12,bm);
+
+                if (X > w()/2-pa.width()/2 && X < w()/2+pa.width()/2
+                        && Y > c480(330)+pa.top && Y < c480(330)+pa.bottom) {
+                    goToMenu("MP_game");
+                } else if (X > w()/2-bm.width()/2 && X < w()/2+bm.width()/2
+                        && Y > c480(400)+bm.top && Y < c480(400)+bm.bottom) {
+                    leaveRoom();
                 }
             }
         }
@@ -586,8 +641,7 @@ public class MainActivity extends Activity {
             // Update UI and internal state based on room updates.
             if (code == GamesCallbackStatusCodes.OK && room != null) {
                 Log.w(TAG, "Room " + room.getRoomId() + " created.");
-                mRoom = room;
-                showWaitingRoom(room, 2);
+                mRoom = room;showWaitingRoom(room, 2);
             } else {
                 Log.w(TAG, "Error creating room: " + code);
                 new AlertDialog.Builder(thisActivity).setMessage("Error occurred, check your network connection and try again.")
@@ -623,7 +677,7 @@ public class MainActivity extends Activity {
             if (code == GamesCallbackStatusCodes.OK && room != null) {
                 Log.w(TAG, "Room " + room.getRoomId() + " connected.");
                 mRoom = room;
-                showWaitingRoom(room, 2);
+                //showWaitingRoom(room, 2);
             } else {
                 Log.w(TAG, "Error connecting to room: " + code);
                 new AlertDialog.Builder(thisActivity).setMessage("Error occurred, check your network connection and try again.")
@@ -631,15 +685,6 @@ public class MainActivity extends Activity {
                 // let screen go to sleep
                 getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             }
-        }
-    };
-
-    private OnRealTimeMessageReceivedListener mMessageReceivedHandler = new OnRealTimeMessageReceivedListener() {
-        @Override
-        public void onRealTimeMessageReceived(@NonNull RealTimeMessage realTimeMessage) {
-            // Handle messages received here.
-            byte[] message = realTimeMessage.getMessageData();
-            // process message contents...
         }
     };
 
@@ -719,7 +764,7 @@ public class MainActivity extends Activity {
                     mMyParticipantId = mRoom.getParticipantId(playerId);
                 }
             });
-            showWaitingRoom(mRoom, 2);
+            //showWaitingRoom(mRoom, 2);
         }
 
         @Override
@@ -859,6 +904,18 @@ public class MainActivity extends Activity {
                 }
             };
 
+    private OnRealTimeMessageReceivedListener mMessageReceivedHandler = new OnRealTimeMessageReceivedListener() {
+        @Override
+        public void onRealTimeMessageReceived(@NonNull RealTimeMessage realTimeMessage) {
+            // Handle messages received here.
+            byte[] message = realTimeMessage.getMessageData();
+            Log.w(TAG, message.toString());
+            
+            middle[1] = new Card(message[0],message[1]);
+            players.get(1).play(0);
+        }
+    };
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
@@ -914,6 +971,7 @@ public class MainActivity extends Activity {
 
             if (resultCode == Activity.RESULT_OK) {
                 // Start the game!
+                goToMenu("MP_game");
             } else if (resultCode == Activity.RESULT_CANCELED) {
                 // Back button pressed.
                 leaveRoom();
@@ -931,6 +989,8 @@ public class MainActivity extends Activity {
             Invitation invitation = data.getExtras().getParcelable(Multiplayer.EXTRA_INVITATION);
             if (invitation != null) {
                 RoomConfig.Builder builder = RoomConfig.builder(mRoomUpdateCallback)
+                        .setOnMessageReceivedListener(mMessageReceivedHandler)
+                        .setRoomStatusUpdateCallback(mRoomStatusCallbackHandler)
                         .setInvitationIdToAccept(invitation.getInvitationId());
                 mJoinedRoomConfig = builder.build();
                 getClient().join(mJoinedRoomConfig);
@@ -1022,10 +1082,24 @@ public class MainActivity extends Activity {
             for (int i = 0; i < bots.length; i++)
                 if (bots[i] >= 0) players.add(new Player(bots[i]));
 
+            middle = new Card[2];
             frameCount = 0;
         }
 
-        if (s.equals("gameover")) {
+        if (s.equals("MP_game")) {
+            players = new ArrayList<>();
+
+            //add player
+            players.add(new Player(getCharacter(),playerDeck));
+
+            //add placeholder for P2
+            players.add(new Player(0));
+
+            middle = new Card[2];
+            frameCount = 0;
+        }
+
+        if (s.equals("1P_gameover") || s.equals("MP_gameover")) {
             transition = 0;
         }
 
@@ -1157,7 +1231,7 @@ public class MainActivity extends Activity {
         w75.setAlpha(255);
     }
 
-    private void draw1PGame() {
+    private void drawGame() {
         //draw hands
         if (middle[0] == null) players.get(0).drawHand(true);
         else players.get(0).drawHand(true,4);
@@ -1204,7 +1278,7 @@ public class MainActivity extends Activity {
     }
 
     private void drawGameOver() {
-        draw1PGame();
+        drawGame();
         canvas.drawColor(Color.argb((int)Math.min(frameCount*2,150),0,0,0));
 
         String msg = players.get(0).won() ? "You win!" : "You lost.";
