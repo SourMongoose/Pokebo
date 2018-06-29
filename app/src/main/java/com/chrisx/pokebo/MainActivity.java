@@ -83,7 +83,7 @@ public class MainActivity extends Activity {
 
     static int N[] = {33, 52, 89};
     static Bitmap[][] sprites;
-    static Bitmap[] icons, cards, trainers;
+    static Bitmap[] icons, cards, trainers, ludicolo;
     static Bitmap pokebo, deck, gplay, loggedin, card_back, back, left, right, quick, create, join;
 
     static Typeface font;
@@ -162,6 +162,11 @@ public class MainActivity extends Activity {
         trainers = new Bitmap[3];
         for (int i = 0; i < trainers.length; i++) {
             trainers[i] = BitmapFactory.decodeResource(res, R.drawable.trainer_fire+i);
+        }
+        ludicolo = new Bitmap[6];
+        for (int i = 0; i < ludicolo.length; i++) {
+            ludicolo[i] = Bitmap.createScaledBitmap(BitmapFactory.decodeResource(res, R.drawable.frame1+i),
+                    Math.round(c480(192)),Math.round(c480(192)),false);
         }
 
         pokebo = Bitmap.createScaledBitmap(BitmapFactory.decodeResource(res, R.drawable.pokebo),
@@ -323,6 +328,9 @@ public class MainActivity extends Activity {
                                         drawMPSelect();
                                     } else if (menu.equals("gameover")) {
                                         drawGameOver();
+                                    } else if (menu.equals("MP_waiting")) {
+                                        canvas.drawBitmap(ludicolo[(int)frameCount/15%6],
+                                                w()/2-ludicolo[0].getWidth()/2,h()/2-ludicolo[0].getHeight()/2,null);
                                     }
                                 }
 
@@ -493,17 +501,13 @@ public class MainActivity extends Activity {
                     goToMenu("start");
                 } else if (Y > c480(100) && Y < c480(430)) {
                     //quick match
-                    if (X < w() / 3) {
-                        startQuickGame();
-                    }
+                    if (X < w() / 3) startQuickGame();
                     //create private room
-                    else if (X < w() * 2 / 3) {
-                        invitePlayers();
-                    }
+                    else if (X < w() * 2 / 3) invitePlayers();
                     //join private room (view invitations)
-                    else {
-                        showInvitationInbox();
-                    }
+                    else showInvitationInbox();
+
+                    goToMenu("MP_waiting");
                 }
             }
         } else if (menu.equals("gameover")) {
@@ -568,8 +572,12 @@ public class MainActivity extends Activity {
     }
 
     private void leaveRoom() {
-        getClient().leave(mJoinedRoomConfig, mRoom.getRoomId());
-        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        if (mJoinedRoomConfig != null && mRoom != null) {
+            getClient().leave(mJoinedRoomConfig, mRoom.getRoomId());
+            getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        }
+
+        goToMenu("MP_select");
     }
 
     private RoomUpdateCallback mRoomUpdateCallback = new RoomUpdateCallback() {
@@ -580,9 +588,10 @@ public class MainActivity extends Activity {
                 Log.w(TAG, "Room " + room.getRoomId() + " created.");
                 mRoom = room;
                 showWaitingRoom(room, 2);
-                //getClient().join(mJoinedRoomConfig);
             } else {
                 Log.w(TAG, "Error creating room: " + code);
+                new AlertDialog.Builder(thisActivity).setMessage("Error occurred, check your network connection and try again.")
+                        .setNeutralButton(android.R.string.ok, null).show();
                 // let screen go to sleep
                 getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             }
@@ -597,6 +606,8 @@ public class MainActivity extends Activity {
                 showWaitingRoom(room, 2);
             } else {
                 Log.w(TAG, "Error joining room: " + code);
+                new AlertDialog.Builder(thisActivity).setMessage("Error occurred, check your network connection and try again.")
+                        .setNeutralButton(android.R.string.ok, null).show();
                 // let screen go to sleep
                 getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             }
@@ -615,6 +626,8 @@ public class MainActivity extends Activity {
                 showWaitingRoom(room, 2);
             } else {
                 Log.w(TAG, "Error connecting to room: " + code);
+                new AlertDialog.Builder(thisActivity).setMessage("Error occurred, check your network connection and try again.")
+                        .setNeutralButton(android.R.string.ok, null).show();
                 // let screen go to sleep
                 getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             }
@@ -714,6 +727,8 @@ public class MainActivity extends Activity {
             // This usually happens due to a network error, leave the game.
             leaveRoom();
             // show error message and return to main screen
+            new AlertDialog.Builder(thisActivity).setMessage("Error occurred, check your network connection and try again.")
+                    .setNeutralButton(android.R.string.ok, null).show();
             mRoom = null;
             mJoinedRoomConfig = null;
         }
@@ -784,7 +799,7 @@ public class MainActivity extends Activity {
     }
 
     private void showWaitingRoom(Room room, int maxPlayersToStartGame) {
-        Log.w("hey","THE WAITING ROOM IS TRYING TO BE SHOWN");
+        Log.w(TAG,"Attempting to show waiting room " + room.getRoomId());
         getClient().getWaitingRoomIntent(room, maxPlayersToStartGame)
                 .addOnSuccessListener(new OnSuccessListener<Intent>() {
                     @Override
@@ -864,6 +879,7 @@ public class MainActivity extends Activity {
         if (requestCode == RC_SELECT_PLAYERS) {
             if (resultCode != Activity.RESULT_OK) {
                 // Canceled or some other error.
+                leaveRoom();
                 return;
             }
 
@@ -899,12 +915,7 @@ public class MainActivity extends Activity {
             if (resultCode == Activity.RESULT_OK) {
                 // Start the game!
             } else if (resultCode == Activity.RESULT_CANCELED) {
-                // Waiting room was dismissed with the back button. The meaning of this
-                // action is up to the game. You may choose to leave the room and cancel the
-                // match, or do something else like minimize the waiting room and
-                // continue to connect in the background.
-
-                // in this example, we take the simple approach and just leave the room:
+                // Back button pressed.
                 leaveRoom();
             } else if (resultCode == GamesActivityResultCodes.RESULT_LEFT_ROOM) {
                 // player wants to leave the room.
@@ -914,6 +925,7 @@ public class MainActivity extends Activity {
         if (requestCode == RC_INVITATION_INBOX) {
             if (resultCode != Activity.RESULT_OK) {
                 // Canceled or some error.
+                leaveRoom();
                 return;
             }
             Invitation invitation = data.getExtras().getParcelable(Multiplayer.EXTRA_INVITATION);
