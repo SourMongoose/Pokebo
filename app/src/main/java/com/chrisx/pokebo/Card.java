@@ -14,13 +14,13 @@ class Card implements Comparable<Card> {
         this.type = type;
         this.id = id;
 
+        //assign card power
+        power = MainActivity.power(type,id);
+
         //bitmaps
         pokemon = MainActivity.sprites[type][id];
         icon = MainActivity.icons[type];
-        card = MainActivity.cards[type];
-
-        //assign card power
-        power = MainActivity.power(type,id);
+        card = power < 9 ? MainActivity.cards[type] : MainActivity.powercards[type];
     }
 
     int getPower() {

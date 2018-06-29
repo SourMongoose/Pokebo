@@ -83,7 +83,7 @@ public class MainActivity extends Activity {
 
     static int N[] = {33, 52, 89};
     static Bitmap[][] sprites;
-    static Bitmap[] icons, cards, trainers, ludicolo;
+    static Bitmap[] icons, cards, powercards, trainers, ludicolo;
     static Bitmap pokebo, deck, gplay, loggedin, card_back, back, left, right, quick, create, join;
 
     static Typeface font;
@@ -158,6 +158,10 @@ public class MainActivity extends Activity {
         cards = new Bitmap[3];
         for (int i = 0; i < cards.length; i++) {
             cards[i] = BitmapFactory.decodeResource(res, R.drawable.card_fire+i);
+        }
+        powercards = new Bitmap[3];
+        for (int i = 0; i < powercards.length; i++) {
+            powercards[i] = BitmapFactory.decodeResource(res, R.drawable.powercard_fire+i);
         }
         trainers = new Bitmap[3];
         for (int i = 0; i < trainers.length; i++) {
@@ -644,7 +648,7 @@ public class MainActivity extends Activity {
                 mRoom = room;showWaitingRoom(room, 2);
             } else {
                 Log.w(TAG, "Error creating room: " + code);
-                new AlertDialog.Builder(thisActivity).setMessage("Error occurred, check your network connection and try again.")
+                new AlertDialog.Builder(thisActivity).setMessage("Error creating room")
                         .setNeutralButton(android.R.string.ok, null).show();
                 // let screen go to sleep
                 getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
@@ -660,7 +664,7 @@ public class MainActivity extends Activity {
                 showWaitingRoom(room, 2);
             } else {
                 Log.w(TAG, "Error joining room: " + code);
-                new AlertDialog.Builder(thisActivity).setMessage("Error occurred, check your network connection and try again.")
+                new AlertDialog.Builder(thisActivity).setMessage("Error joining room")
                         .setNeutralButton(android.R.string.ok, null).show();
                 // let screen go to sleep
                 getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
@@ -680,7 +684,7 @@ public class MainActivity extends Activity {
                 //showWaitingRoom(room, 2);
             } else {
                 Log.w(TAG, "Error connecting to room: " + code);
-                new AlertDialog.Builder(thisActivity).setMessage("Error occurred, check your network connection and try again.")
+                new AlertDialog.Builder(thisActivity).setMessage("Error connecting to room")
                         .setNeutralButton(android.R.string.ok, null).show();
                 // let screen go to sleep
                 getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
@@ -772,7 +776,7 @@ public class MainActivity extends Activity {
             // This usually happens due to a network error, leave the game.
             leaveRoom();
             // show error message and return to main screen
-            new AlertDialog.Builder(thisActivity).setMessage("Error occurred, check your network connection and try again.")
+            new AlertDialog.Builder(thisActivity).setMessage("Disconnected from room")
                     .setNeutralButton(android.R.string.ok, null).show();
             mRoom = null;
             mJoinedRoomConfig = null;
